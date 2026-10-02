@@ -1,0 +1,5 @@
+# Names are what you search. Values are what gets inserted.
+email: user@example.com
+sig: |-
+  Best regards,
+  Name
