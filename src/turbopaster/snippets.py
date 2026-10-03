@@ -1,7 +1,5 @@
 """Load snippet YAML files into one string-to-string mapping."""
 
-import os
-import sys
 from pathlib import Path
 
 import yaml
@@ -14,19 +12,11 @@ class SnippetError(Exception):
 
 
 def app_directory() -> Path:
-    if sys.platform == "win32":
-        root = os.environ.get("APPDATA")
-        base = Path(root) if root else Path.home() / "AppData" / "Roaming"
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
-    else:
-        root = os.environ.get("XDG_CONFIG_HOME")
-        base = Path(root) if root else Path.home() / ".config"
-    return base / "turbopaster"
+    return Path.home() / "turbopaster"
 
 
 def load_user_snippets(app_dir: Path | None = None) -> dict[str, str]:
-    root = app_directory() if app_dir is None else app_dir
+    root = (app_directory() if app_dir is None else app_dir).expanduser()
     snippet_dir = root / "snippets"
     config = root / "config.yaml"
     try:
@@ -45,11 +35,6 @@ def load_user_snippets(app_dir: Path | None = None) -> dict[str, str]:
             paths.append(extra)
         else:
             raise SnippetError(f"{extra}: not found")
-    if not paths:
-        raise SnippetError(
-            f"no snippet files in {snippet_dir}; add yaml files there, "
-            f"or list more paths under extra in {config}"
-        )
     return load_files(paths)
 
 
@@ -65,11 +50,15 @@ def _snippet_files(directory: Path) -> list[Path]:
         if directory.exists():
             raise SnippetError(f"{directory}: not a folder")
         raise SnippetError(f"{directory}: folder not found")
-    return sorted(
-        path
-        for path in directory.iterdir()
-        if path.is_file() and path.suffix.lower() in _SUFFIXES
-    )
+    try:
+        return sorted(
+            path
+            for path in directory.iterdir()
+            if path.is_file() and path.suffix.lower() in _SUFFIXES
+        )
+    except OSError as exc:
+        reason = exc.strerror or "could not list folder"
+        raise SnippetError(f"{directory}: {reason}") from None
 
 
 def _extra_paths(path: Path) -> list[Path]:
@@ -90,20 +79,23 @@ def _extra_paths(path: Path) -> list[Path]:
         return []
     if not isinstance(loaded, dict):
         raise SnippetError(f"{path}: expected a mapping")
-    unknown = [key for key in loaded if key != "extra"]
+    unknown = [key for key in loaded if key not in {"extra_paths", "hotkey"}]
     if unknown:
         raise SnippetError(f"{path}: unknown setting {unknown[0]!r}")
-    extra = loaded.get("extra", [])
+    hotkey = loaded.get("hotkey")
+    if hotkey is not None and not isinstance(hotkey, str):
+        raise SnippetError(f"{path}: hotkey must be a string")
+    extra = loaded.get("extra_paths", [])
     if extra is None:
         return []
     if not isinstance(extra, list):
-        raise SnippetError(f"{path}: extra must be a list of paths")
+        raise SnippetError(f"{path}: extra_paths must be a list of paths")
 
     paths: list[Path] = []
     for index, item in enumerate(extra, start=1):
         if not isinstance(item, str) or not item.strip():
-            raise SnippetError(f"{path}: extra item {index} must be a path")
-        candidate = Path(item)
+            raise SnippetError(f"{path}: extra_paths item {index} must be a path")
+        candidate = Path(item).expanduser()
         if not candidate.is_absolute():
             candidate = path.parent / candidate
         paths.append(candidate)
@@ -118,8 +110,7 @@ def load_files(paths: list[Path]) -> dict[str, str]:
             previous = defined_at.get(key)
             if previous is not None:
                 raise SnippetError(
-                    f"duplicate snippet {key!r} in {path}:{line} "
-                    f"(already defined in {previous})"
+                    f"duplicate snippet {key!r} in {path}:{line} (already defined in {previous})"
                 )
             merged[key] = value
             defined_at[key] = f"{path}:{line}"
@@ -148,9 +139,7 @@ def _load_file(path: Path) -> list[tuple[str, str, int]]:
         if not isinstance(root, yaml.MappingNode):
             line = root.start_mark.line + 1
             kind = _describe(_construct(path, loader, root))
-            raise SnippetError(
-                f"{path}:{line}: expected a mapping of strings, got {kind}"
-            )
+            raise SnippetError(f"{path}:{line}: expected a mapping of strings, got {kind}")
         items: list[tuple[str, str, int]] = []
         for key_node, value_node in root.value:
             key = _as_string(
@@ -185,9 +174,7 @@ def _as_string(path: Path, node: yaml.Node, value: object, *, what: str) -> str:
     hint = ""
     if isinstance(node, yaml.ScalarNode):
         hint = "; quote it so YAML keeps it as text"
-    raise SnippetError(
-        f"{path}:{line}: {what} must be a string, got {_describe(value)}{hint}"
-    )
+    raise SnippetError(f"{path}:{line}: {what} must be a string, got {_describe(value)}{hint}")
 
 
 def _describe(value: object) -> str:

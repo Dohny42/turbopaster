@@ -3,7 +3,13 @@ from pathlib import Path
 import pytest
 
 from turbopaster.main import main
-from turbopaster.snippets import SnippetError, load_directory, load_files
+from turbopaster.snippets import (
+    SnippetError,
+    app_directory,
+    load_directory,
+    load_files,
+    load_user_snippets,
+)
 
 
 def _write(path: Path, text: str) -> Path:
@@ -127,25 +133,158 @@ def test_directory_errors(tmp_path: Path) -> None:
         load_directory(empty)
 
 
-def test_example_file_loads() -> None:
-    loaded = load_directory(Path("snippets"))
+def test_load_user_snippets_uses_explicit_app_dir(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    snippets = app_dir / "snippets"
+    snippets.mkdir(parents=True)
+    _write(snippets / "example.yaml", "email: user@example.com\n")
 
-    assert loaded["email"] == "user@example.com"
-    assert "Name" in loaded["sig"]
+    assert load_user_snippets(app_dir) == {"email": "user@example.com"}
 
 
-def test_main_reports_schema_error(
+def test_load_user_snippets_creates_snippets_dir_and_returns_empty_mapping(
+    tmp_path: Path,
+) -> None:
+    app_dir = tmp_path / "app"
+
+    assert load_user_snippets(app_dir) == {}
+    assert (app_dir / "snippets").is_dir()
+
+
+def test_load_user_snippets_merges_extra_file_and_directory(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    snippets = app_dir / "snippets"
+    snippets.mkdir(parents=True)
+    _write(snippets / "base.yaml", "base: one\n")
+    extra_dir = app_dir / "shared"
+    extra_dir.mkdir()
+    _write(extra_dir / "shared.yaml", "shared: two\n")
+    _write(app_dir / "more.yaml", "more: three\n")
+    _write(
+        app_dir / "config.yaml",
+        "extra_paths:\n  - shared\n  - more.yaml\n",
+    )
+
+    assert load_user_snippets(app_dir) == {
+        "base": "one",
+        "shared": "two",
+        "more": "three",
+    }
+
+
+def test_load_user_snippets_resolves_relative_extra_paths(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    (app_dir / "snippets").mkdir(parents=True)
+    extra_dir = tmp_path / "outside" / "snippets"
+    extra_dir.mkdir(parents=True)
+    _write(extra_dir / "extra.yaml", "extra: loaded\n")
+    _write(
+        app_dir / "config.yaml",
+        "extra_paths:\n  - ../outside/snippets\n",
+    )
+
+    assert load_user_snippets(app_dir) == {"extra": "loaded"}
+
+
+def test_load_user_snippets_expands_user_in_app_dir(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    home = tmp_path / "home"
+    app_dir = home / "custom-app"
+    snippets = app_dir / "snippets"
+    snippets.mkdir(parents=True)
+    _write(snippets / "example.yaml", "email: user@example.com\n")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+
+    assert load_user_snippets(Path("~/custom-app")) == {
+        "email": "user@example.com"
+    }
+
+
+def test_load_user_snippets_reports_missing_extra_path(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    (app_dir / "snippets").mkdir(parents=True)
+    _write(app_dir / "config.yaml", "extra_paths:\n  - missing.yaml\n")
+
+    with pytest.raises(SnippetError, match="missing.yaml: not found"):
+        load_user_snippets(app_dir)
+
+
+def test_app_directory_defaults_to_home_turbopaster(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+
+    assert app_directory() == tmp_path / "turbopaster"
+
+
+def test_config_rejects_non_list_extra_paths(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    (app_dir / "snippets").mkdir(parents=True)
+    _write(app_dir / "config.yaml", "extra_paths: shared\n")
+
+    with pytest.raises(SnippetError, match="extra_paths must be a list of paths"):
+        load_user_snippets(app_dir)
+
+
+def test_config_rejects_non_string_extra_path(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    (app_dir / "snippets").mkdir(parents=True)
+    _write(app_dir / "config.yaml", "extra_paths:\n  - true\n")
+
+    with pytest.raises(SnippetError, match="extra_paths item 1 must be a path"):
+        load_user_snippets(app_dir)
+
+
+def test_config_rejects_non_string_hotkey(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    (app_dir / "snippets").mkdir(parents=True)
+    _write(app_dir / "config.yaml", "hotkey: 123\n")
+
+    with pytest.raises(SnippetError, match="hotkey must be a string"):
+        load_user_snippets(app_dir)
+
+
+def test_config_rejects_unknown_setting(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    (app_dir / "snippets").mkdir(parents=True)
+    _write(app_dir / "config.yaml", "unexpected: value\n")
+
+    with pytest.raises(SnippetError, match="unknown setting 'unexpected'"):
+        load_user_snippets(app_dir)
+
+
+def test_main_prints_names_from_explicit_app_dir(
+    tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    snippets = tmp_path / "snippets"
-    snippets.mkdir()
+    app_dir = tmp_path / "app"
+    snippets = app_dir / "snippets"
+    snippets.mkdir(parents=True)
+    _write(snippets / "example.yaml", "email: user@example.com\n")
+
+    main(["--app-dir", str(app_dir)])
+
+    assert capsys.readouterr().out.splitlines() == [
+        "loaded 1 snippets",
+        "  email",
+    ]
+
+
+def test_main_reports_schema_error_from_explicit_app_dir(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    app_dir = tmp_path / "app"
+    snippets = app_dir / "snippets"
+    snippets.mkdir(parents=True)
     _write(snippets / "bad.yaml", "pin: 1\n")
-    monkeypatch.chdir(tmp_path)
 
     with pytest.raises(SystemExit) as exc:
-        main()
+        main(["--app-dir", str(app_dir)])
 
     assert exc.value.code == 1
     error = capsys.readouterr().err
