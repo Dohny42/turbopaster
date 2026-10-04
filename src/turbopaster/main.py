@@ -31,7 +31,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
         selected = run_search_window(mappings)
         if selected is not None:
-            print(f"selected: {selected}")
+            print(selected)
         return
 
     print(f"loaded {len(mappings)} snippets")

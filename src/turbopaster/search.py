@@ -1,141 +1,98 @@
-"""Standalone Tkinter search window for snippet names."""
+"""Qt Quick search palette for snippet names."""
 
 from collections.abc import Mapping
+from pathlib import Path
+from typing import cast
+
+from PySide6.QtCore import Property, QObject, QUrl, QTimer, Signal, Slot
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
+from PySide6.QtQuick import QQuickWindow
+from PySide6.QtQuickControls2 import QQuickStyle
 
 
 def filter_snippet_names(snippets: Mapping[str, str], query: str) -> list[str]:
     needle = query.casefold()
+    if not needle:
+        return []
     return sorted(
         (name for name in snippets if needle in name.casefold()),
         key=str.casefold,
     )
 
 
+def preview_value(value: str) -> str:
+    return value.replace("\r\n", "\\n").replace("\r", "\\n").replace("\n", "\\n")
+
+
+class _SearchController(QObject):
+    resultsChanged = Signal()
+    chosen = Signal()
+
+    def __init__(self, snippets: Mapping[str, str]) -> None:
+        super().__init__()
+        self._snippets = snippets
+        self._results: list[dict[str, str]] = []
+        self.selected_value: str | None = None
+
+    @Property(list, notify=resultsChanged)
+    def results(self) -> list[str]:
+        return self._results
+
+    @Slot(str)
+    def search(self, query: str) -> None:
+        names = filter_snippet_names(self._snippets, query)
+        self._results = [
+            {"name": name, "preview": preview_value(self._snippets[name])}
+            for name in names
+        ]
+        self.resultsChanged.emit()
+
+    @Slot(str)
+    def choose(self, name: str) -> None:
+        if name in self._snippets:
+            self.selected_value = self._snippets[name]
+            self.chosen.emit()
+
+
+def _create_search_window(
+    snippets: Mapping[str, str],
+) -> tuple[
+    QGuiApplication,
+    QQmlApplicationEngine,
+    QQmlComponent,
+    _SearchController,
+    QQuickWindow,
+]:
+    app = cast(QGuiApplication | None, QGuiApplication.instance())
+    if app is None:
+        QQuickStyle.setStyle("Basic")
+        app = QGuiApplication([])
+
+    engine = QQmlApplicationEngine()
+    controller = _SearchController(snippets)
+    qml_path = Path(__file__).with_name("search.qml")
+    component = QQmlComponent(engine, QUrl.fromLocalFile(str(qml_path)))
+    if component.isError():
+        errors = "; ".join(error.toString() for error in component.errors())
+        raise RuntimeError(f"Could not load search window {qml_path}: {errors}")
+    root = component.createWithInitialProperties({"searchController": controller})
+    if root is None:
+        errors = "; ".join(error.toString() for error in component.errors())
+        raise RuntimeError(f"Could not create search window {qml_path}: {errors}")
+
+    window = cast(QQuickWindow, root)
+    screen = app.primaryScreen()
+    if screen is not None:
+        geometry = screen.availableGeometry()
+        window.setX(geometry.x() + (geometry.width() - window.width()) // 2)
+        window.setY(geometry.y() + (geometry.height() - window.height()) // 2)
+    window.requestActivate()
+    QTimer.singleShot(0, window.requestActivate)
+    return app, engine, component, controller, window
+
+
 def run_search_window(snippets: Mapping[str, str]) -> str | None:
-    import tkinter as tk
-    from tkinter import ttk
-
-    background = "#171a21"
-    surface = "#242a35"
-    foreground = "#f1f5f9"
-    muted = "#9aa4b2"
-    accent = "#3b82f6"
-
-    root = tk.Tk()
-    root.title("TurboPaster")
-    root.configure(background=background)
-    root.geometry("600x360")
-    root.minsize(420, 260)
-
-    style = ttk.Style(root)
-    if "clam" in style.theme_names():
-        style.theme_use("clam")
-    style.configure("TP.TFrame", background=background)
-    style.configure(
-        "TP.Title.TLabel",
-        background=background,
-        foreground=foreground,
-        font=("Segoe UI", 17, "bold"),
-    )
-    style.configure(
-        "TP.Hint.TLabel",
-        background=background,
-        foreground=muted,
-        font=("Segoe UI", 9),
-    )
-    style.configure(
-        "TP.Search.TEntry",
-        fieldbackground=surface,
-        foreground=foreground,
-        insertcolor=foreground,
-        padding=11,
-        font=("Segoe UI", 13),
-    )
-
-    content = ttk.Frame(root, style="TP.TFrame", padding=24)
-    content.pack(fill="both", expand=True)
-    ttk.Label(content, text="TurboPaster", style="TP.Title.TLabel").pack(anchor="w")
-    ttk.Label(
-        content,
-        text="Search your saved snippets",
-        style="TP.Hint.TLabel",
-    ).pack(anchor="w", pady=(3, 16))
-
-    query = tk.StringVar(root)
-    entry = ttk.Entry(content, textvariable=query, style="TP.Search.TEntry")
-    entry.pack(fill="x", pady=(0, 12))
-
-    results_frame = ttk.Frame(content, style="TP.TFrame")
-    results_frame.pack(fill="both", expand=True)
-    results = tk.Listbox(
-        results_frame,
-        background=surface,
-        foreground=foreground,
-        selectbackground=accent,
-        selectforeground="#ffffff",
-        activestyle="none",
-        borderwidth=0,
-        highlightthickness=0,
-        font=("Segoe UI", 11),
-        height=8,
-    )
-    results.pack(side="left", fill="both", expand=True)
-    scrollbar = ttk.Scrollbar(results_frame, orient="vertical", command=results.yview)
-    scrollbar.pack(side="right", fill="y")
-    results.configure(yscrollcommand=scrollbar.set)
-
-    status = tk.StringVar(root)
-    ttk.Label(content, textvariable=status, style="TP.Hint.TLabel").pack(
-        anchor="w",
-        pady=(10, 0),
-    )
-
-    def refresh(*_args: str) -> None:
-        names = filter_snippet_names(snippets, query.get())
-        results.delete(0, tk.END)
-        for name in names:
-            results.insert(tk.END, name)
-        if names:
-            results.selection_set(0)
-            results.activate(0)
-            status.set(f"{len(names)} matching snippet(s)")
-        else:
-            status.set("No matching snippets")
-
-    def move_selection(offset: int) -> str:
-        last = results.size() - 1
-        if last < 0:
-            return "break"
-        selection = results.curselection()
-        current = selection[0] if selection else 0
-        index = min(max(current + offset, 0), last)
-        results.selection_clear(0, tk.END)
-        results.selection_set(index)
-        results.activate(index)
-        results.see(index)
-        return "break"
-
-    selected: list[str] = []
-
-    def choose() -> str:
-        selection = results.curselection()
-        if selection:
-            selected.append(results.get(selection[0]))
-            root.destroy()
-        return "break"
-
-    query.trace_add("write", refresh)
-    root.bind("<Down>", lambda _event: move_selection(1))
-    root.bind("<Up>", lambda _event: move_selection(-1))
-    root.bind("<Return>", lambda _event: choose())
-    root.bind("<Escape>", lambda _event: root.destroy())
-    results.bind("<Double-Button-1>", lambda _event: choose())
-
-    refresh()
-    root.update_idletasks()
-    x = (root.winfo_screenwidth() - root.winfo_width()) // 2
-    y = (root.winfo_screenheight() - root.winfo_height()) // 2
-    root.geometry(f"+{x}+{y}")
-    entry.focus_set()
-    root.mainloop()
-    return selected[0] if selected else None
+    app, _engine, _component, controller, _window = _create_search_window(snippets)
+    app.exec()
+    return controller.selected_value
