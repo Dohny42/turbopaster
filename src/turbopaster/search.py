@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import Property, QObject, QUrl, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
 from PySide6.QtQuick import QQuickWindow
@@ -36,15 +36,14 @@ class _SearchController(QObject):
         self.selected_value: str | None = None
 
     @Property(list, notify=resultsChanged)
-    def results(self) -> list[str]:
+    def results(self) -> list[dict[str, str]]:
         return self._results
 
     @Slot(str)
     def search(self, query: str) -> None:
         names = filter_snippet_names(self._snippets, query)
         self._results = [
-            {"name": name, "preview": preview_value(self._snippets[name])}
-            for name in names
+            {"name": name, "preview": preview_value(self._snippets[name])} for name in names
         ]
         self.resultsChanged.emit()
 
