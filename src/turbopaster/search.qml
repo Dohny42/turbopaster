@@ -16,7 +16,7 @@ ApplicationWindow {
 
     onActiveChanged: {
         if (active)
-            searchInput.forceActiveFocus()
+            searchInput.forceActiveFocus();
     }
 
     Rectangle {
@@ -55,22 +55,22 @@ ApplicationWindow {
                 }
 
                 onTextChanged: palette.searchController.search(text)
-                Keys.onPressed: function(event) {
+                Keys.onPressed: function (event) {
                     if (event.key === Qt.Key_Down) {
                         if (resultsList.count > 0)
-                            resultsList.currentIndex = Math.min(resultsList.currentIndex + 1, resultsList.count - 1)
-                        event.accepted = true
+                            resultsList.currentIndex = Math.min(resultsList.currentIndex + 1, resultsList.count - 1);
+                        event.accepted = true;
                     } else if (event.key === Qt.Key_Up) {
                         if (resultsList.count > 0)
-                            resultsList.currentIndex = Math.max(resultsList.currentIndex - 1, 0)
-                        event.accepted = true
+                            resultsList.currentIndex = Math.max(resultsList.currentIndex - 1, 0);
+                        event.accepted = true;
                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                         if (resultsList.count > 0)
-                            palette.searchController.choose(palette.searchController.results[resultsList.currentIndex].name)
-                        event.accepted = true
+                            palette.searchController.choose(palette.searchController.results[resultsList.currentIndex].name);
+                        event.accepted = true;
                     } else if (event.key === Qt.Key_Escape) {
-                        palette.close()
-                        event.accepted = true
+                        palette.close();
+                        event.accepted = true;
                     }
                 }
 
@@ -81,13 +81,15 @@ ApplicationWindow {
                 id: resultsPanel
                 objectName: "resultsPanel"
                 width: parent.width
-                height: searchInput.text.length === 0 ? 0 :
-                    (palette.searchController.results.length === 0 ? 42 : Math.min(palette.searchController.results.length, 6) * 66)
+                height: searchInput.text.length === 0 ? 0 : (palette.searchController.results.length === 0 ? 42 : Math.min(palette.searchController.results.length, 6) * 66)
                 clip: true
 
                 Behavior on height {
                     enabled: palette.animationsEnabled
-                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        duration: 150
+                        easing.type: Easing.OutCubic
+                    }
                 }
 
                 ListView {
@@ -141,8 +143,8 @@ ApplicationWindow {
 
                         TapHandler {
                             onTapped: {
-                                resultsList.currentIndex = index
-                                palette.searchController.choose(modelData.name)
+                                resultsList.currentIndex = index;
+                                palette.searchController.choose(modelData.name);
                             }
                         }
                     }
@@ -165,7 +167,7 @@ ApplicationWindow {
     Connections {
         target: palette.searchController
         function onChosen() {
-            palette.close()
+            palette.close();
         }
     }
 }
