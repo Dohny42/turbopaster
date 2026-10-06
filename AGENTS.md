@@ -22,10 +22,12 @@
 
 ## Tests and Verification
 - Before suggesting any tests, present a concise proposal with a stable ID for each test, its test name, purpose, and level (`unit`, `integration`, or `end-to-end`). The user can approve or discuss tests by ID. Do not add or run tests until the user approves the relevant IDs.
+- For complex tests, document the purpose in a `GIVEN -> WHEN -> THEN` format for human readability. GIVEN conditions may chain with `AND` or `OR`.
 - Aim for a stable test pyramid: focused unit tests for logic, integration tests for important component boundaries, and a small number of end-to-end tests for critical user workflows. Choose the mix based on the feature and avoid brittle OS-, timing-, or display-dependent tests where a reliable seam is available.
 - Do not run the application or tests before approval. Once the user approves test IDs, the agent may execute those approved tests; report commands and results clearly.
 - After implementation, identify what was verified and what remains for the user to run. Do not install test tooling or other dependencies without permission.
 
 ## Project Documentation
+- Write English prose with at least 80% compliance with ASD-STE100. Prefer short, direct sentences and simple grammar. Apply this to documentation, user-facing messages, comments, and test descriptions. Do not change code identifiers or established technical terms only to meet this rule.
 - `README.md` is the source for users: describe only behavior that is implemented, plus accurate setup and run instructions.
 - `DESIGN.md` is the source for implementation details: record the agreed architecture, behavior, constraints, decisions, and next milestone. Keep pending decisions explicit; do not present proposals as settled requirements.

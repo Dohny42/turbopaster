@@ -54,7 +54,7 @@ class _SearchController(QObject):
             self.chosen.emit()
 
 
-def _create_search_window(
+def create_search_window(
     snippets: Mapping[str, str],
 ) -> tuple[
     QGuiApplication,
@@ -92,6 +92,6 @@ def _create_search_window(
 
 
 def run_search_window(snippets: Mapping[str, str]) -> str | None:
-    app, _engine, _component, controller, _window = _create_search_window(snippets)
+    app, _engine, _component, controller, _window = create_search_window(snippets)
     app.exec()
     return controller.selected_value

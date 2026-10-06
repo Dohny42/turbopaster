@@ -6,11 +6,16 @@ Hotkey search for inserting named text at the cursor. Keep the first version sma
 
 - Snippets are YAML files containing only `dict[str, str]`; multiline values are supported.
 - Default snippets live in `$HOME/turbopaster/snippets/`.
+- An existing empty snippets folder is valid and loads an empty mapping.
 - Global settings live in `$HOME/turbopaster/config.yaml`.
-- The config uses top-level `extra_paths` and `hotkey` keys. Future settings can be added as separate keys.
-- Duplicate names and invalid YAML/schema are actionable errors; never silently override a snippet.
+- The config supports top-level `extra_paths` and `hotkey` keys. Relative extra paths start from the config file's folder.
+- Validate configuration before scanning or loading snippets. Collect independent configuration and snippet problems and report them together.
+- Duplicate names and invalid YAML/schema are actionable errors. Never silently override a snippet.
+- Custom application errors live in `exceptions.py`. The CLI catches `ApplicationError` and reports the stored problems.
 
-Ctrl+Shift+Space is the preferred initial hotkey on Windows, macOS, and Linux. The config value syntax and conflict behavior must be agreed before implementation.
+The hotkey format uses `+` between tokens. It requires at least one modifier (`Ctrl`, `Shift`, `Alt`, or `Meta`) and one or more keys. Multiple keys form a simultaneous chord, such as `Ctrl+K+S`. Hotkey activation is not implemented yet.
+
+Do not scan other applications for hotkey conflicts. The user is responsible for selecting an available chord. If a platform registration API reports a conflict when activation is implemented, report that failure.
 
 ## Interaction
 
@@ -18,9 +23,9 @@ Open the search palette with a global hotkey, filter by snippet name, and confir
 
 ## Development
 
-- Complete: snippet loading and validation.
+- Complete: configuration and snippet validation. Report independent problems together before returning any snippets.
 - Complete: interactive Qt Quick/QML search palette, available with `--search`; it focuses the search field on open, shows a one-line value preview under each matching name, and returns/prints the selected snippet's full value. Insertion at the cursor is not implemented yet.
-- Next: agree on hotkey config syntax and conflict behavior, then add the global hotkey and connect it to the search window.
+- Next: add the global hotkey and connect it to the search window. The accepted syntax is `Ctrl+Shift+Space` by default, with simultaneous multi-key chords supported. Do not add cross-application conflict scanning.
 - After that: hide the window, insert the selected text at the cursor, and restore the user's clipboard.
 
 Agree on each feature step before proceeding. Before suggesting tests, provide test IDs and names for approval. Approved tests may be run by the agent.

@@ -3,7 +3,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from turbopaster.snippets import SnippetError, load_user_snippets
+from turbopaster.exceptions import ApplicationError
+from turbopaster.snippets import load_user_snippets
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -23,9 +24,9 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     try:
         mappings = load_user_snippets(args.app_dir)
-    except SnippetError as exc:
+    except ApplicationError as exc:
         print(f"turbopaster: {exc}", file=sys.stderr)
-        raise SystemExit(1) from None
+        raise SystemExit(1)
     if args.search:
         from turbopaster.search import run_search_window
 
