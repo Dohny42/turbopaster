@@ -24,7 +24,7 @@ Open the search palette with a global hotkey, filter by snippet name, and confir
 ## Development
 
 - Complete: configuration and snippet validation. Report independent problems together before returning any snippets.
-- Complete: interactive Qt Quick/QML search palette, available with `--search`; it focuses the search field on open, shows a one-line value preview under each matching name, and returns/prints the selected snippet's full value. Insertion at the cursor is not implemented yet.
+- Complete: interactive Qt Quick/QML search palette, available with `--search`; it focuses the search field on open, shows a one-line value preview under each matching name, returns/prints the selected snippet's full value, and exits when it receives Ctrl+C. Insertion at the cursor is not implemented yet.
 - Next: add the global hotkey and connect it to the search window. The accepted syntax is `Ctrl+Shift+Space` by default, with simultaneous multi-key chords supported. Do not add cross-application conflict scanning.
 - After that: hide the window, insert the selected text at the cursor, and restore the user's clipboard.
 

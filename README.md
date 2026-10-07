@@ -15,6 +15,6 @@ From the project directory:
 uv run turbopaster
 ```
 
-`uv run turbopaster` loads configured snippets and prints their names. `uv run turbopaster --search` opens a centered, frameless search palette. Results appear as you type with each snippet's name and a one-line value preview. Multiline values show visible `\n` markers in the preview. The search field is focused on open. Use the arrow keys to move, Enter to select, or Escape to close. Selection prints the snippet's full value. Global hotkey activation and text insertion are not implemented yet.
+`uv run turbopaster` loads configured snippets and prints their names. `uv run turbopaster --search` opens a centered, frameless search palette. Results appear as you type with each snippet's name and a one-line value preview. Multiline values show visible `\n` markers in the preview. The search field is focused on open. Use the arrow keys to move, Enter to select, or Escape to close. Press Ctrl+C in the terminal to exit search mode. Selection prints the snippet's full value. Global hotkey activation and text insertion are not implemented yet.
 
 See [DESIGN.md](DESIGN.md) for the short implementation outline.

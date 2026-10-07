@@ -1,10 +1,16 @@
+import signal
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QEvent, QObject, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QKeyEvent
 
-from turbopaster.search import create_search_window, filter_snippet_names, preview_value
+from turbopaster.search import (
+    create_search_window,
+    filter_snippet_names,
+    preview_value,
+    run_search_window,
+)
 from turbopaster.snippets import load_user_snippets
 
 
@@ -136,6 +142,16 @@ def test_loaded_snippets_appear_in_search_results(
         component.deleteLater()
         engine.deleteLater()
         app.processEvents()
+
+
+def test_search_event_loop_exits_on_sigint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GIVEN the search loop is active -> WHEN SIGINT arrives -> THEN exit and restore handler."""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    previous_handler = signal.getsignal(signal.SIGINT)
+    QTimer.singleShot(0, lambda: signal.raise_signal(signal.SIGINT))
+
+    assert run_search_window({}) is None
+    assert signal.getsignal(signal.SIGINT) is previous_handler
 
 
 def test_filter_snippet_names_returns_no_names_without_match() -> None:

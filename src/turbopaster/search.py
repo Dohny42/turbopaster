@@ -1,7 +1,9 @@
 """Qt Quick search palette for snippet names."""
 
+import signal
 from collections.abc import Mapping
 from pathlib import Path
+from types import FrameType
 from typing import cast
 
 from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
@@ -93,5 +95,19 @@ def create_search_window(
 
 def run_search_window(snippets: Mapping[str, str]) -> str | None:
     app, _engine, _component, controller, _window = create_search_window(snippets)
-    app.exec()
+    previous_handler = signal.getsignal(signal.SIGINT)
+    signal_timer = QTimer(app)
+    signal_timer.setInterval(250)
+    signal_timer.timeout.connect(lambda: None)
+    signal_timer.start()
+
+    def quit_on_interrupt(_signal_number: int, _frame: FrameType | None) -> None:
+        app.quit()
+
+    signal.signal(signal.SIGINT, quit_on_interrupt)
+    try:
+        app.exec()
+    finally:
+        signal.signal(signal.SIGINT, previous_handler)
+        signal_timer.stop()
     return controller.selected_value
