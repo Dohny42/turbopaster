@@ -5,7 +5,9 @@ ApplicationWindow {
     id: palette
     objectName: "searchPalette"
     required property var searchController
-    visible: true
+    property bool initiallyVisible: true
+    property bool residentMode: false
+    visible: initiallyVisible
     width: 680
     height: 104 + resultsPanel.height
     minimumWidth: 420
@@ -69,7 +71,7 @@ ApplicationWindow {
                             palette.searchController.choose(palette.searchController.results[resultsList.currentIndex].name);
                         event.accepted = true;
                     } else if (event.key === Qt.Key_Escape) {
-                        palette.close();
+                        palette.dismiss();
                         event.accepted = true;
                     }
                 }
@@ -164,10 +166,18 @@ ApplicationWindow {
         }
     }
 
+    function dismiss() {
+        searchInput.clear();
+        if (residentMode)
+            palette.hide();
+        else
+            palette.close();
+    }
+
     Connections {
         target: palette.searchController
         function onChosen() {
-            palette.close();
+            palette.dismiss();
         }
     }
 }

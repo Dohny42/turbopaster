@@ -403,7 +403,7 @@ def test_main_prints_names_from_explicit_app_dir(
     snippets.mkdir(parents=True)
     _write(snippets / "example.yaml", "email: user@example.com\n")
 
-    main(["--app-dir", str(app_dir)])
+    main(["--app-dir", str(app_dir), "--list"])
 
     assert capsys.readouterr().out.splitlines() == [
         "loaded 1 snippets",

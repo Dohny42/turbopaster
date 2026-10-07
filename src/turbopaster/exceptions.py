@@ -21,6 +21,10 @@ class InvalidHotkeyError(ApplicationError):
     """A hotkey does not match the supported syntax."""
 
 
+class HotkeyListenerError(ApplicationError):
+    """The global hotkey listener could not start or stopped unexpectedly."""
+
+
 class InvalidExtraPathError(ApplicationError):
     """An extra snippet path is invalid."""
 

@@ -20,6 +20,7 @@ from turbopaster.exceptions import (
 
 _SUFFIXES = {".yaml", ".yml"}
 _MODIFIERS = {"ctrl", "shift", "alt", "meta"}
+DEFAULT_HOTKEY = "Ctrl+Shift+Space"
 _KEY_NAMES = {
     "backspace",
     "delete",
@@ -43,6 +44,7 @@ _KEY_NAMES = {
 class _ConfigurationCheck:
     extra_paths: tuple[Path, ...] = ()
     problems: tuple[ApplicationError, ...] = ()
+    hotkey: str = DEFAULT_HOTKEY
 
 
 def app_directory() -> Path:
@@ -50,6 +52,11 @@ def app_directory() -> Path:
 
 
 def load_user_snippets(app_dir: Path | None = None) -> dict[str, str]:
+    snippets, _hotkey = load_user_snippets_and_hotkey(app_dir)
+    return snippets
+
+
+def load_user_snippets_and_hotkey(app_dir: Path | None = None) -> tuple[dict[str, str], str]:
     root = (app_directory() if app_dir is None else app_dir).expanduser()
     snippet_dir = root / "snippets"
     configuration = check_configuration_file(root / "config.yaml")
@@ -68,7 +75,7 @@ def load_user_snippets(app_dir: Path | None = None) -> dict[str, str]:
             paths.extend(list_snippet_files_in_directory(extra))
         else:
             paths.append(extra)
-    return merge_snippet_files(paths)
+    return merge_snippet_files(paths), configuration.hotkey
 
 
 def load_directory(directory: Path) -> dict[str, str]:
@@ -121,9 +128,10 @@ def check_configuration_file(path: Path) -> _ConfigurationCheck:
         if key not in {"extra_paths", "hotkey"}:
             problems.append(InvalidYamlStructureError(f"{path}: unknown setting {key!r}"))
 
+    hotkey = DEFAULT_HOTKEY
     if "hotkey" in configuration:
         try:
-            check_hotkey(configuration["hotkey"])
+            hotkey = check_hotkey(configuration["hotkey"])
         except InvalidHotkeyError as exc:
             problems.append(InvalidHotkeyError(f"{path}: {exc}"))
 
@@ -132,10 +140,10 @@ def check_configuration_file(path: Path) -> _ConfigurationCheck:
         path,
     )
     problems.extend(path_problems)
-    return _ConfigurationCheck(extra_paths, tuple(problems))
+    return _ConfigurationCheck(extra_paths, tuple(problems), hotkey)
 
 
-def check_hotkey(hotkey: object) -> None:
+def check_hotkey(hotkey: object) -> str:
     if not isinstance(hotkey, str):
         raise InvalidHotkeyError("hotkey must be a string")
 
@@ -155,6 +163,7 @@ def check_hotkey(hotkey: object) -> None:
     for key in keys:
         if key not in _KEY_NAMES and not re.fullmatch(r"[a-z0-9]|f(?:[1-9]|1[0-9]|2[0-4])", key):
             raise InvalidHotkeyError(f"hotkey contains an unsupported key {key!r}")
+    return hotkey
 
 
 def check_extra_paths(

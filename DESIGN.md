@@ -13,20 +13,20 @@ Hotkey search for inserting named text at the cursor. Keep the first version sma
 - Duplicate names and invalid YAML/schema are actionable errors. Never silently override a snippet.
 - Custom application errors live in `exceptions.py`. The CLI catches `ApplicationError` and reports the stored problems.
 
-The hotkey format uses `+` between tokens. It requires at least one modifier (`Ctrl`, `Shift`, `Alt`, or `Meta`) and one or more keys. Multiple keys form a simultaneous chord, such as `Ctrl+K+S`. Hotkey activation is not implemented yet.
+The hotkey format uses `+` between tokens. It requires at least one modifier (`Ctrl`, `Shift`, `Alt`, or `Meta`) and one or more keys. Multiple keys form a simultaneous chord, such as `Ctrl+K+S`. The default is `Ctrl+Shift+Space`. The app converts this format to the syntax used by `pynput`.
 
 Do not scan other applications for hotkey conflicts. The user is responsible for selecting an available chord. If a platform registration API reports a conflict when activation is implemented, report that failure.
 
 ## Interaction
 
-Open the search palette with a global hotkey, filter by snippet name, and confirm to insert. Initially show only the search field; reveal matching results beneath it as the user types and animate the palette height. Arrow keys move the selection, Enter confirms, and Escape closes without selecting. Hide the window before pasting. Preserve the user's clipboard after insertion.
+Open the search palette with a global hotkey, filter by snippet name, and confirm to insert. Initially show only the search field; reveal matching results beneath it as the user types and animate the palette height. Arrow keys move the selection, Enter confirms, and Escape hides the resident palette without selecting. Queue hotkey callbacks onto the Qt thread before changing window state. Hide the window before pasting. Preserve the user's clipboard after insertion.
 
 ## Development
 
 - Complete: configuration and snippet validation. Report independent problems together before returning any snippets.
-- Complete: interactive Qt Quick/QML search palette, available with `--search`; it focuses the search field on open, shows a one-line value preview under each matching name, returns/prints the selected snippet's full value, and exits when it receives Ctrl+C. Insertion at the cursor is not implemented yet.
-- Next: add the global hotkey and connect it to the search window. The accepted syntax is `Ctrl+Shift+Space` by default, with simultaneous multi-key chords supported. Do not add cross-application conflict scanning.
-- After that: hide the window, insert the selected text at the cursor, and restore the user's clipboard.
+- Complete: interactive Qt Quick/QML search palette. The default command runs in resident mode with a global hotkey. The `--search` option opens the palette without a listener, and `--list` prints snippet names. The palette focuses the search field on open, shows a one-line value preview under each matching name, hides after selection or Escape in resident mode, and exits on Ctrl+C. The selected value is printed when the process exits.
+- Complete: global hotkey activation with `Ctrl+Shift+Space` as the default and simultaneous multi-key chords supported. Do not add cross-application conflict scanning. Listener startup failures are reported.
+- Next: insert the selected text at the cursor and restore the user's clipboard.
 
 Agree on each feature step before proceeding. Before suggesting tests, provide test IDs and names for approval. Approved tests may be run by the agent.
 

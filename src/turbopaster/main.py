@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from turbopaster.exceptions import ApplicationError
-from turbopaster.snippets import load_user_snippets
+from turbopaster.snippets import load_user_snippets_and_hotkey
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -15,29 +15,35 @@ def main(argv: Sequence[str] | None = None) -> None:
         metavar="PATH",
         help="use PATH for config.yaml and the snippets/ folder",
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--search",
         action="store_true",
-        help="open an interactive search window",
+        help="open the search window without starting the global hotkey listener",
+    )
+    mode.add_argument(
+        "--list",
+        action="store_true",
+        help="load snippets and print their names",
     )
     args = parser.parse_args(argv)
 
     try:
-        mappings = load_user_snippets(args.app_dir)
+        mappings, hotkey = load_user_snippets_and_hotkey(args.app_dir)
+        if args.list:
+            print(f"loaded {len(mappings)} snippets")
+            for key in mappings:
+                print(f"  {key}")
+            return
+
+        from turbopaster.search import run_search_window
+
+        selected = run_search_window(mappings, hotkey=None if args.search else hotkey)
     except ApplicationError as exc:
         print(f"turbopaster: {exc}", file=sys.stderr)
         raise SystemExit(1)
-    if args.search:
-        from turbopaster.search import run_search_window
-
-        selected = run_search_window(mappings)
-        if selected is not None:
-            print(selected)
-        return
-
-    print(f"loaded {len(mappings)} snippets")
-    for key in mappings:
-        print(f"  {key}")
+    if selected is not None:
+        print(selected)
 
 
 if __name__ == "__main__":
